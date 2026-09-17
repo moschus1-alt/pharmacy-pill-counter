@@ -16,7 +16,7 @@ function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(base,0,0);
   const scale=canvas.width/Math.max(1,canvas.getBoundingClientRect().width), font=Math.max(12,12*scale);
   history.current.objects.forEach((o,i)=>{
-    ctx.strokeStyle=o.source==='manual'?'#ffc861':'#5dffbe';ctx.lineWidth=Math.max(2,2*scale);ctx.beginPath();
+    ctx.strokeStyle=o.source==='manual'||o.needsReview?'#ffc861':'#5dffbe';ctx.lineWidth=Math.max(2,2*scale);ctx.beginPath();
     if(o.contour?.length){o.contour.forEach(([x,y],j)=>j?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();}else ctx.arc(o.x,o.y,o.r,0,Math.PI*2);
     ctx.stroke();
     if($('numbers').checked){const label=String(i+1);ctx.font=`bold ${font}px system-ui`;const w=ctx.measureText(label).width+10*scale;ctx.fillStyle='#063f35e8';ctx.fillRect(o.x-w/2,o.y-font*.65,w,font*1.35);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,o.x,o.y+font*.03);}

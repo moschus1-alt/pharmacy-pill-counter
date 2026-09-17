@@ -1,4 +1,4 @@
-const CACHE='pill-counter-v3';
+const CACHE='pill-counter-v4';
 const LOCAL=['localhost','127.0.0.1'].includes(self.location.hostname);
 const FILES=['./','./index.html','./style.css','./icon.svg','./manifest.webmanifest','./src/app.js','./src/detector.js','./src/detector-worker.js','./src/history.js','./src/storage.js','./src/sample.js','./vendor/opencv.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>LOCAL?self.skipWaiting():undefined));});
