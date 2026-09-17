@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#086b63"><meta name="description" content="사진을 기기 안에서 분석하고 직접 검수하는 알약 카운터">
+  <title>알약 카운터 · Pharmacy Pill Counter</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header><div class="brand"><img src="./icon.svg" alt="" width="36" height="36"><div><h1>알약 카운터</h1><small>PHARMACY PILL COUNTER</small></div></div><span class="privacy">기기 내 분석</span></header>
+  <main>
+    <section class="target card" aria-labelledby="target-title"><div class="section-heading"><h2 id="target-title">목표 수량</h2><span>01 / 준비</span></div><div class="targets"><button data-target="30" aria-pressed="true">30정</button><button data-target="60" aria-pressed="false">60정</button><button data-target="90" aria-pressed="false">90정</button><button data-target="100" aria-pressed="false">100정</button><label class="custom">직접 입력<input id="target" type="number" min="1" max="9999" step="1" inputmode="numeric" value="30" aria-label="목표 수량 직접 입력"></label></div></section>
+    <div class="workspace">
+      <section class="photo card" aria-labelledby="photo-title">
+        <div class="section-heading"><h2 id="photo-title">사진 촬영 · 검수</h2><span>02 / 확인</span></div>
+        <div class="capture-actions"><button id="camera" class="primary">카메라 촬영</button><button id="upload">사진 불러오기</button><input id="file" type="file" accept="image/*" hidden><input id="camera-file" type="file" accept="image/*" capture="environment" hidden></div>
+        <div id="viewer" class="viewer">
+          <div id="empty"><div class="focus-frame"><span>＋</span></div><h3>알약을 펼쳐주세요</h3><p>무광 단색 배경에 간격을 두고 놓은 뒤<br>수직으로 밝고 선명하게 촬영하세요.</p><button id="sample" class="text-button">12정 연습 이미지로 시작</button></div>
+          <div id="stage" hidden><canvas id="canvas" tabindex="0" aria-label="검수 이미지. 추가 또는 삭제 모드를 선택하고 알약 위치를 터치하세요."></canvas></div>
+        </div>
+        <div class="image-tools"><label>확대 <input id="zoom" type="range" min="1" max="3" step="0.25" value="1" disabled><output id="zoom-label">100%</output></label><label><input id="numbers" type="checkbox" checked> 번호</label><button id="fit" disabled>맞춤</button></div>
+        <div class="edit-tools" role="group" aria-label="사진 수정 모드"><button data-mode="inspect" aria-pressed="true" disabled>이동 · 검수</button><button data-mode="add" aria-pressed="false" disabled>＋ 누락 추가</button><button data-mode="delete" aria-pressed="false" disabled>− 오검출 삭제</button></div>
+        <p id="edit-hint" class="hint">사진을 불러오면 각 알약에 번호와 윤곽이 표시됩니다.</p>
+        <div class="history-tools"><button id="undo" disabled>↶ Undo</button><button id="redo" disabled>↷ Redo</button><button id="reanalyze" disabled>재분석</button></div>
+        <details class="analysis-options"><summary>인식 조정</summary><label>민감도 <input id="sensitivity" type="range" min="0.65" max="1.5" step="0.05" value="1"><output id="sensitivity-label">1.00</output></label><p class="hint">누락이 많으면 높이고, 배경까지 잡히면 낮춘 뒤 재분석하세요. 재분석하면 수동 수정이 초기화됩니다.</p></details>
+      </section>
+      <aside class="result card" aria-labelledby="result-title"><div class="section-heading"><h2 id="result-title">검수 수량</h2><span>03 / 확정</span></div><div class="count"><strong id="count">—</strong><span>정</span></div><div id="comparison" class="comparison" aria-live="polite">사진을 준비해주세요</div><div class="count-meta"><span>자동 감지 <b id="auto-count">—</b></span><span>수량 보정 <b id="offset">0</b></span></div><div class="adjust"><button id="minus" aria-label="수량 1 감소" disabled>−</button><span>번호 없이 수량만 보정</span><button id="plus" aria-label="수량 1 증가" disabled>＋</button></div><p class="hint">위치 수정은 사진에서, 수량만 조정할 때는 +/−를 사용하세요.</p><div id="status" role="status">사진은 서버로 전송되지 않습니다.</div><p id="quality" class="quality" hidden></p><div class="confirm-options"><label><input id="reviewed" type="checkbox" disabled> 전체 알약과 수량을 직접 확인했습니다</label><label><input id="save-stats" type="checkbox"> 검수 기록을 이 기기에 저장</label><label class="sub-option"><input id="save-image" type="checkbox" disabled> 사진도 함께 저장 (기본 꺼짐)</label></div><button id="confirm" class="primary confirm" disabled>확인 완료</button><p class="notice">검출 결과는 자동 추정입니다. 겹침·그림자·반사는 오차를 만들 수 있으므로 조제 전 직접 검수하세요.</p></aside>
+    </div>
+    <details id="records" class="card records"><summary>기록 · 테스트 <span>이 기기에만 저장</span></summary><p id="stats">저장한 검수 기록이 없습니다.</p><div class="record-actions"><button id="export">기록 JSON 내보내기</button><button id="clear">기록 삭제</button></div><label><input id="test-mode" type="checkbox"> 개발·테스트 모드</label><div id="test-panel" hidden><label>별도로 센 정답 수량 (선택)<input id="ground-truth" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="비워두면 최종 확인 수량"></label><p class="hint">Exact Count Accuracy = 자동 수량과 확인한 정답이 같은 기록 / 전체 기록. 연습 이미지는 통계에서 제외됩니다. FP/FN은 위치 수정 기준이며, 수량 보정이 있으면 객체 단위 정답은 미확정입니다.</p><button id="download-sample">연습 이미지 다운로드</button><pre id="diagnostics"></pre></div></details>
+    <footer><strong>사진은 기기 내부에서 처리됩니다.</strong><p>사진·기록 저장은 선택 사항입니다. 기본값은 모두 꺼짐이며, 브라우저 데이터 삭제 시 저장 기록도 삭제됩니다. 카메라는 HTTPS 또는 localhost에서 사용할 수 있습니다.</p></footer>
+  </main>
+  <dialog id="camera-dialog"><div class="section-heading"><h2>후면 카메라 촬영</h2><button id="camera-close" aria-label="카메라 닫기">닫기</button></div><div class="camera-preview"><video id="video" autoplay playsinline muted></video><div class="camera-guide"></div></div><p class="hint">알약 전체가 화면 안에 들어오도록 촬영하세요.</p><button id="shutter" class="primary" disabled>촬영하기</button><button id="native-camera">휴대폰 기본 카메라 사용</button></dialog>
+  <dialog id="action-dialog"><h2 id="action-title"></h2><p id="action-message"></p><div class="record-actions"><button id="action-cancel">취소</button><button id="action-ok" class="primary">계속</button></div></dialog>
+  <div class="mobile-summary" id="mobile-summary" hidden><div><strong id="mobile-count">0정</strong><small id="mobile-comparison"></small></div><a href="#result-title">검수 완료하기</a></div>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
