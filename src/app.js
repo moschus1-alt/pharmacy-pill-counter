@@ -35,7 +35,7 @@ function render(){
   document.querySelectorAll('[data-target]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.target)===target)));
   document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=!hasPhoto||busy||saving;b.setAttribute('aria-pressed',String(b.dataset.mode===mode));});
   $('undo').disabled=busy||saving||history.index===0;$('redo').disabled=busy||saving||history.index===history.states.length-1;
-  for(const id of ['plus','minus','reanalyze','zoom','fit','reviewed'])$(id).disabled=!hasPhoto||busy||saving;
+  for(const id of ['plus','minus','reanalyze','menu-apply','zoom','fit','reviewed'])$(id).disabled=!hasPhoto||busy||saving;
   $('minus').disabled||=n<=0;$('plus').disabled||=n>=9999;
   for(const id of ['camera','upload','sample'])$(id).disabled=busy||saving;
   $('confirm').disabled=!hasPhoto||busy||saving||!valid||!$('reviewed').checked||confirmedRevision===revision;
@@ -72,7 +72,7 @@ async function acceptBlob(blob,practice=false){
 async function analyze(){
   const token=++operation;busy=true;invalidate();status('기기에서 사진을 분석하고 있습니다…');$('quality').hidden=true;render();
   try{
-    const result=await detector.analyze(base.getContext('2d').getImageData(0,0,base.width,base.height),{sensitivity:Number($('sensitivity').value)});
+    const result=await detector.analyze(base.getContext('2d').getImageData(0,0,base.width,base.height),{sensitivity:Number($('sensitivity').value),suppressReflections:$('suppress-reflections').checked});
     if(token!==operation)return;
     analysis=result;automatic=structuredClone(result.objects);history.reset({objects:result.objects,offset:0});
     status(`${automatic.length}개를 자동 감지했습니다. 번호와 실제 알약을 대조해주세요.${isPractice?' 연습용 합성 이미지입니다.':''}`);
@@ -98,7 +98,10 @@ async function refreshStats(){try{const s=summarize(await readSamples());$('stat
 
 $('upload').onclick=()=>$('file').click();
 for(const id of ['file','camera-file'])$(id).onchange=e=>{const file=e.target.files[0];e.target.value='';acceptBlob(file);};
-$('sample').onclick=()=>createSample().toBlob(blob=>acceptBlob(blob,true),'image/png');
+$('sample').onclick=()=>{$('menu-dialog').close();createSample().toBlob(blob=>acceptBlob(blob,true),'image/png');};
+$('menu-open').onclick=()=>$('menu-dialog').showModal();
+$('menu-close').onclick=()=>$('menu-dialog').close();
+$('menu-apply').onclick=()=>{$('menu-dialog').close();$('reanalyze').click();};
 $('download-sample').onclick=()=>createSample().toBlob(blob=>download(blob,'pill-counter-practice-12.png'),'image/png');
 $('camera').onclick=openCamera;$('camera-close').onclick=stopCamera;
 $('camera-dialog').addEventListener('cancel',stopCamera);
@@ -149,6 +152,6 @@ $('confirm').onclick=async()=>{
 };
 $('export').onclick=async()=>{try{const samples=await readSamples();download(new Blob([JSON.stringify({schemaVersion:1,exportedAt:new Date().toISOString(),note:'이미지 파일은 포함되지 않음. 사용자 검수 데이터이며 임상 검증 자료가 아닙니다.',summary:summarize(samples),samples},null,2)],{type:'application/json'}),'pill-counter-records.json');}catch{status('기록을 내보내지 못했습니다.');}};
 $('clear').onclick=async()=>{if(!await ask('저장 기록을 삭제할까요?','이 기기에 저장한 모든 검수 기록과 사진이 삭제됩니다. 복구할 수 없습니다.'))return;try{await clearSamples();await refreshStats();status('이 기기의 저장 기록과 사진을 삭제했습니다.');}catch{status('기록을 삭제하지 못했습니다.');}};
-if(new URLSearchParams(location.search).has('test')){$('test-mode').checked=true;$('test-panel').hidden=false;$('records').open=true;}
+if(new URLSearchParams(location.search).has('test')){$('test-mode').checked=true;$('test-panel').hidden=false;$('records').open=true;$('menu-dialog').showModal();}
 refreshStats();render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});

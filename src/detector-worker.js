@@ -33,14 +33,18 @@ self.onmessage = async ({data: {imageData, parameters}}) => {
     const smooth=keep(new cv.Mat()), mask=keep(new cv.Mat());
     cv.GaussianBlur(diff,smooth,new cv.Size(5,5),0);
     const otsu=cv.threshold(smooth,mask,0,255,cv.THRESH_BINARY|cv.THRESH_OTSU);
-    const threshold=Math.max(12,otsu/parameters.sensitivity);
+    const sensitivity=Math.max(.5,Math.min(1.5,Number(parameters.sensitivity)||.8));
+    const suppressReflections=parameters.suppressReflections!==false;
+    const threshold=Math.max(suppressReflections?22:12,otsu/sensitivity);
     cv.threshold(smooth,mask,threshold,255,cv.THRESH_BINARY);
     const kernel=keep(cv.getStructuringElement(cv.MORPH_ELLIPSE,new cv.Size(3,3)));
     cv.morphologyEx(mask,mask,cv.MORPH_CLOSE,kernel);
     cv.morphologyEx(mask,mask,cv.MORPH_OPEN,kernel);
     const contours=keep(new cv.MatVector()), hierarchy=keep(new cv.Mat());
     cv.findContours(mask,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
-    const objects=[]; let edgeCount=0;
+    const dx=keep(new cv.Mat()),dy=keep(new cv.Mat());
+    if(suppressReflections){cv.Sobel(smooth,dx,cv.CV_32F,1,0,3);cv.Sobel(smooth,dy,cv.CV_32F,0,1,3);}
+    const objects=[]; let edgeCount=0,rejectedReflections=0;
     for(let i=0;i<contours.size();i++) {
       const contour=contours.get(i);
       try {
@@ -49,6 +53,20 @@ self.onmessage = async ({data: {imageData, parameters}}) => {
         if(rect.x<2||rect.y<2||rect.x+rect.width>=w-2||rect.y+rect.height>=h-2){edgeCount++;continue;}
         const circularity=4*Math.PI*area/(perimeter*perimeter);
         if(circularity<.12||area/(rect.width*rect.height)<.25)continue;
+        if(suppressReflections){
+          const hull=new cv.Mat();let solidity;
+          try{cv.convexHull(contour,hull);solidity=area/Math.max(1,cv.contourArea(hull));}finally{hull.delete();}
+          // Diffuse highlights lack a crisp boundary; texture is usually irregular or thin.
+          // Sample every boundary pixel so simplified long edges do not skew sharpness.
+          let edgeSum=0,edgeSamples=0;const p=contour.data32S;
+          for(let j=0;j<p.length;j+=2){
+            const k=(j+2)%p.length,x0=p[j],y0=p[j+1],x1=p[k],y1=p[k+1];
+            const steps=Math.max(1,Math.ceil(Math.hypot(x1-x0,y1-y0)));
+            for(let t=0;t<steps;t++){const x=Math.round(x0+(x1-x0)*t/steps),y=Math.round(y0+(y1-y0)*t/steps),index=y*w+x;edgeSum+=Math.hypot(dx.data32F[index],dy.data32F[index])/8;edgeSamples++;}
+          }
+          const edgeSharpness=edgeSum/Math.max(1,edgeSamples),aspect=Math.max(rect.width/rect.height,rect.height/rect.width);
+          if(circularity<.42||solidity<.82||aspect>3.8||edgeSharpness<5/sensitivity){rejectedReflections++;continue;}
+        }
         const moments=cv.moments(contour);
         const points=[]; for(let j=0;j<contour.data32S.length;j+=2)points.push([contour.data32S[j],contour.data32S[j+1]]);
         objects.push({id:`auto-${i}`,x:moments.m10/moments.m00,y:moments.m01/moments.m00,r:Math.sqrt(area/Math.PI),area,contour:points,source:'auto'});
@@ -62,7 +80,8 @@ self.onmessage = async ({data: {imageData, parameters}}) => {
     if(objects.some(o=>o.area>median*2.1))warnings.push('큰 윤곽이 있습니다. 붙어 있는 알약이 하나로 계산되지 않았는지 확인하세요.');
     if(brightness/(w*h)<35)warnings.push('사진이 어둡습니다. 조명을 밝게 하고 다시 촬영하세요.');
     if(otsu<18)warnings.push('배경과 알약의 대비가 낮습니다. 다른 색의 무광 배경을 권장합니다.');
-    self.postMessage({objects,processingTimeMs:Math.round(performance.now()-start),detector:{type:'opencv',version:'4.9.0',pipelineVersion:'1.0.0',parameters:{...parameters,threshold,minArea:Math.max(28,w*h*.00007)}},quality:{brightness:Math.round(brightness/(w*h)),edgeEnergy:Math.round(gradient/(w*h)*100)/100,background,otsu},warnings});
+    if(rejectedReflections)warnings.push('흐리거나 불규칙한 윤곽을 제외했습니다. 실제 알약이 빠졌다면 메뉴에서 반사 억제를 끄거나 누락 추가를 사용하세요.');
+    self.postMessage({objects,processingTimeMs:Math.round(performance.now()-start),detector:{type:'opencv',version:'4.9.0',pipelineVersion:'1.1.0',parameters:{sensitivity,suppressReflections,threshold,minArea:Math.max(28,w*h*.00007)}},quality:{brightness:Math.round(brightness/(w*h)),edgeEnergy:Math.round(gradient/(w*h)*100)/100,background,otsu,rejectedReflections},warnings});
   } catch(error) {self.postMessage({error:'자동 분석에 실패했습니다. 재분석하거나 수동으로 표시해주세요. '+(error.message||'')});}
   finally {mats.reverse().forEach(m=>m.delete());}
 };
